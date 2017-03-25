@@ -218,6 +218,8 @@ expression(X) ::= NUMBER(A).
 
 ## Object-Oriented Wrapper Class
 
+We merged header and cpp file here, actually you should separate them:
+
 ```cpp
 #include "Token.h"
 #include <stdlib.h>
