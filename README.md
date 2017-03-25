@@ -1,5 +1,5 @@
 # lemon-parser-generator
-Lemon parser generator (extracted from SQLite)
+Lemon parser generator &mdash; the modern C parser generator, extracted from SQLite sources
 - `lemon.c` keeps Lemon implementation
 - `lempar.c` is template file for code generation
 
