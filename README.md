@@ -70,11 +70,11 @@ The example below generates the following header:
 And also source files which declares following functions:
 
 ```c
-// pre-declaration of generated functions.
 void *ParseCalcGrammarAlloc(void *(*mallocProc)(size_t));
 
-// CCalcParser* is our extra argument
+// CCalcParser* is our extra argument, see `%extra_argument` directive in grammar
 void ParseCalcGrammar(void*, int, Token, CCalcParser*);
+
 void ParseCalcGrammarFree(
   void *p,                    /* The parser to be deleted */
   void (*freeProc)(void*)     /* Function used to reclaim memory */);
@@ -82,6 +82,14 @@ void ParseCalcGrammarFree(
 void ParseCalcGrammarTrace(FILE * TraceFILE, char * zTracePrompt);
 #endif
 ```
+
+- names of generated function depend on `%name` directive, e.g. `%name ParseCalcGrammar`
+- extra argument passed with `%extra_argument {CCalcParser *pParse}`
+- token type set with `%token_type {Token}`
+- `ParseCalcGrammarAlloc` constructs new parser object using function pointer to allocate memory
+- `ParseCalcGrammar` consumes one token and advances parser state
+- `ParseCalcGrammarFree` destructs parser object using function pointer to free memory
+- `ParseCalcGrammarTrace` is debug-only function to enable state transitions and LALR stack tracing during `ParseCalcGrammar(...)` calls
 
 This is grammar example:
 
@@ -206,4 +214,87 @@ expression(X) ::= NUMBER(A).
 {
     X.value = A.value;
 }
+```
+
+## Object-Oriented Wrapper Class
+
+```cpp
+#include "Token.h"
+#include <stdlib.h>
+#include <new>
+#include <iostream>
+
+
+// pre-declaration of generated functions.
+void *ParseCalcGrammarAlloc(void *(*mallocProc)(size_t));
+void ParseCalcGrammar(void*, int, Token, CCalcParser*);
+void ParseCalcGrammarFree(
+  void *p,                    /* The parser to be deleted */
+  void (*freeProc)(void*)     /* Function used to reclaim memory */);
+#ifndef NDEBUG
+void ParseCalcGrammarTrace(FILE * TraceFILE, char * zTracePrompt);
+#endif
+
+
+class CCalcParser
+{
+public:
+    CCalcParser()
+    {
+        // This lambda has no capture and can be converted to function pointer.
+        auto allocate = [](size_t size) -> void* {
+            return new (std::nothrow) char[size];
+        };
+        m_parser = ParseCalcGrammarAlloc(allocate);
+    }
+
+    ~CCalcParser()
+    {
+        // This lambda has no capture and can be converted to function pointer.
+        auto retain = [](void *pointer) -> void {
+            auto array = reinterpret_cast<char *>(pointer);
+            delete[] array;
+        };
+        ParseCalcGrammarFree(m_parser, retain);
+    }
+
+    bool Advance(int tokenId, const Token &tokenData)
+    {
+        ParseCalcGrammar(m_parser, tokenId, tokenData, this);
+        return !m_isErrorState;
+    }
+
+#ifndef NDEBUG
+    void StartDebugTrace(FILE *output)
+    {
+        m_tracePrompt = "";
+        ParseCalcGrammarTrace(output, &m_tracePrompt[0]);
+    }
+#endif
+
+    void OnError(const Token &token)
+    {
+        std::cerr << "Syntax error at position " << token.position << std::endl;
+        m_isErrorState = true;
+    }
+
+    void OnStackOverflow()
+    {
+        std::cerr << "LALR parser stack overflow occured." << std::endl;
+        m_isErrorState = true;
+    }
+
+    void PrintResult(double value)
+    {
+        std::cerr << value << std::endl;
+    }
+
+private:
+#ifndef NDEBUG
+    // C++ code owns trace prompt memory, even for empty prompt.
+    std::string m_tracePrompt;
+#endif
+    bool m_isErrorState = false;
+    void *m_parser = nullptr;
+};
 ```
