@@ -32,7 +32,7 @@ mv CalcGrammar.c CalcGrammar.cpp
 
 Valid command line options for "lemon" are:
 
-```bash
+```
   -b           Print only the basis in report.
   -c           Don't compress the action table.
   -D<string>   Define an %ifdef macro.
@@ -93,7 +93,7 @@ void ParseCalcGrammarTrace(FILE * TraceFILE, char * zTracePrompt);
 
 This is grammar example:
 
-```lemon
+```c
 // All token codes are small integers with #defines that begin with "TK_"
 %token_prefix TK_
 
